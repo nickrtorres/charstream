@@ -3,7 +3,7 @@
 //! `CharStream` is a hacked bidirectional char iterator that takes ownership of a
 //! `String` and grants the client an ability to scan back and forth through a stream
 //! of characters. A `CharStream` is not a ring; an attempt to iterate past the front or end
-//! of the stream will fail and return None.
+//! of the stream will fail and return `None`.
 //!
 //! This structure is designed to allow the caller to hold an immutable
 //! instance to `CharStream`, since only the underlying implementation details of
