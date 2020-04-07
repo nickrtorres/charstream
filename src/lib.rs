@@ -6,21 +6,16 @@
 //! of the stream will fail with `CharStreamError::FallsOff`
 //!
 //! This structure is designed to allow the caller to hold an immutable
-//! instance to CharStream, since only the underlying implementation details of
+//! instance to `CharStream`, since only the underlying implementation details of
 //! CharStream need to change. This is done using interior mutability.
 use std::cell::RefCell;
 
 #[derive(Debug, PartialEq)]
 pub enum CharStreamError {
-    /// An attempt was made to walk off either end of the CharStream.
-    NextFailed,
-    /// A call to String::chars().next() failed. This is fatal as the internal
-    /// structure of the CharStream is now malformed.
+    /// A call to `String::chars().next()` failed. This is fatal as the internal
+    /// structure of the `CharStream` is now malformed.
     /// TODO: this should not be fatal
     FallsOff,
-    /// CharStream's internal buffer was unwrapped to None. This is likely a
-    /// programming error.
-    ValueNotFound,
 }
 
 #[derive(Debug, PartialEq)]
@@ -44,18 +39,15 @@ pub trait BiDirectionalIterator {
     fn prev(&self) -> Result<char, CharStreamError>;
     fn peek_next(&self) -> Result<&CharStream, CharStreamError>;
     fn peek_prev(&self) -> Result<&CharStream, CharStreamError>;
-    fn value(&self) -> Result<char, CharStreamError>;
+    fn value(&self) -> char;
 }
 
 impl BiDirectionalIterator for CharStream {
-    /// Advance the CharStream by 1 returning the character
+    /// Advance the `CharStream` by 1 returning the character
     ///
     /// # Errors
-    /// CharStreamError::FallsOff if a complete call to next would step off
-    /// the end of the String
-    ///
-    /// CharStreamError::ValueNotFound if indexing into a *good* index is None.
-    /// This is a programming error.
+    /// `CharStreamError::FallsOff` if a complete call to `next` would step off
+    /// the end of the `String`
     fn next(&self) -> Result<char, CharStreamError> {
         let current = *self.index.borrow() + 1;
         self.index.replace(current);
@@ -68,14 +60,11 @@ impl BiDirectionalIterator for CharStream {
         Ok(self.chars[current as usize])
     }
 
-    /// Retreat the CharStream by 1 returning the character
+    /// Retreat the `CharStream` by 1 returning the character
     ///
     /// # Errors
-    /// CharStreamError::FallsOff if a complete call to prev would step off
-    /// the beginning of the String
-    ///
-    /// CharStreamError::ValueNotFound if indexing into a *good* index is None.
-    /// This is a programming error.
+    /// `CharStreamError::FallsOff` if a complete call to `prev` would step off
+    /// the beginning of the `String`
     fn prev(&self) -> Result<char, CharStreamError> {
         let current = *self.index.borrow();
         if current == 0 {
@@ -92,14 +81,8 @@ impl BiDirectionalIterator for CharStream {
     /// Advance the CharStream by 1 returning &self
     ///
     /// # Errors
-    /// CharStreamError::FallsOff if a complete call to prev would step off
-    /// the end of the String
-    ///
-    /// CharStreamError::ValueNotFound if indexing into a *good* index is None.
-    /// This is a programming error.
-    ///
-    /// CharStreamError::NextFailed if calling next on the internal String
-    /// fails. This error is fatal.
+    /// `CharStreamError::FallsOff` if a complete call to `peek_next` would step off
+    /// the end of the `String`
     fn peek_next(&self) -> Result<&CharStream, CharStreamError> {
         let current = *self.index.borrow() + 1;
         self.index.replace(current);
@@ -114,14 +97,8 @@ impl BiDirectionalIterator for CharStream {
     /// Retreat the CharStream by 1 returning &self
     ///
     /// # Errors
-    /// CharStreamError::FallsOff if a complete call to prev would step off
-    /// the beginning of the String
-    ///
-    /// CharStreamError::ValueNotFound if indexing into a *good* index is None.
-    /// This is a programming error.
-    ///
-    /// CharStreamError::NextFailed if calling next on the internal String
-    /// fails. This error is fatal.
+    /// `CharStreamError::FallsOff` if a complete call to `peek_prev` would step off
+    /// the beginning of the `String`
     fn peek_prev(&self) -> Result<&CharStream, CharStreamError> {
         let current = *self.index.borrow() - 1;
         if current < 0 {
@@ -132,14 +109,9 @@ impl BiDirectionalIterator for CharStream {
     }
 
     /// Get the current value under the *cursor*
-    ///
-    /// # Errors
-    /// CharStreamError::ValueNotFound if indexing into an unitialized
-    /// CharStream (i.e. next() hasn't been called)
-    /// fails. This error is fatal.
-    fn value(&self) -> Result<char, CharStreamError> {
+    fn value(&self) -> char {
         let current = *self.index.borrow();
-        Ok(self.chars[current as usize])
+        self.chars[current as usize]
     }
 }
 
@@ -204,7 +176,7 @@ mod tests {
         stream.peek_next(); // 'r'
         assert_eq!(
             Err(CharStreamError::FallsOff),
-            stream.peek_next().and_then(CharStream::value)
+            stream.peek_next().map(CharStream::value)
         );
     }
 
@@ -212,7 +184,7 @@ mod tests {
     fn it_can_get_the_peek_next() {
         let value = String::from("foobar");
         let stream = CharStream::from(value);
-        assert_eq!(Ok('f'), stream.peek_next().and_then(CharStream::value));
+        assert_eq!(Ok('f'), stream.peek_next().map(CharStream::value));
     }
 
     #[test]
@@ -225,7 +197,7 @@ mod tests {
             stream
                 .peek_next()
                 .and_then(CharStream::peek_prev)
-                .and_then(CharStream::value)
+                .map(CharStream::value)
         );
     }
 
