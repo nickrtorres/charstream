@@ -1,15 +1,15 @@
 #![warn(clippy::pedantic, clippy::nursery)]
 
 //! CharStream is a hacked bi-directional char iterator that takes ownership of a
-//! `String` and grants the client an ability to scan back and forth through this
-//! string. A CharStream is not a ring; an attempt to iterate past the front or end
-//! of the stream will fail with CharStreamError::FallsOffEnd
+//! `String` and grants the client an ability to scan back and forth through a stream
+//! of characters. A CharStream is not a ring; an attempt to iterate past the front or end
+//! of the stream will fail with CharStreamError::FallsOff
 //!
-//! CharStream is takes 2N in space where N is the number of characters in the
+//! CharStream takes 2N in space where N is the number of characters in the
 //! original string. This is guaranteed as a Vector holding an internal cache of
 //! the String is allocated on construction. This not ideal.
 //!
-//! This value structure is designed to allow the caller to hold an immutable
+//! This structure is designed to allow the caller to hold an immutable
 //! instance to CharStream, since only the underlying implementation details of
 //! CharStream need to change. This is done using interior mutability.
 use std::cell::RefCell;
@@ -20,9 +20,10 @@ pub enum CharStreamError {
     NextFailed,
     /// A call to String::chars().next() failed. This is fatal as the internal
     /// structure of the CharStream is now malformed.
-    FallsOffEnd,
-    /// CharStream's internal buffer was unwrapped to None. This is a
-    /// programming error
+    /// TODO: this should not be fatal
+    FallsOff,
+    /// CharStream's internal buffer was unwrapped to None. This is likely a
+    /// programming error.
     ValueNotFound,
 }
 
@@ -59,7 +60,7 @@ impl BiDirectionalIterator for CharStream {
     /// Advance the CharStream by 1 returning the character
     ///
     /// # Errors
-    /// CharStreamError::FallsOffEnd if a complete call to next would step off
+    /// CharStreamError::FallsOff if a complete call to next would step off
     /// the end of the String
     ///
     /// CharStreamError::ValueNotFound if indexing into a *good* index is None.
@@ -69,7 +70,7 @@ impl BiDirectionalIterator for CharStream {
         self.index.replace(current);
 
         if current > self.value.len() {
-            return Err(CharStreamError::FallsOffEnd);
+            return Err(CharStreamError::FallsOff);
         }
 
         // we've already been here. early return
@@ -81,14 +82,14 @@ impl BiDirectionalIterator for CharStream {
             self.payload.borrow_mut()[current] = Some(c);
             self.payload.borrow()[current].ok_or(CharStreamError::ValueNotFound)
         } else {
-            return Err(CharStreamError::FallsOffEnd);
+            return Err(CharStreamError::FallsOff);
         }
     }
 
     /// Retreat the CharStream by 1 returning the character
     ///
     /// # Errors
-    /// CharStreamError::FallsOffEnd if a complete call to prev would step off
+    /// CharStreamError::FallsOff if a complete call to prev would step off
     /// the beginning of the String
     ///
     /// CharStreamError::ValueNotFound if indexing into a *good* index is None.
@@ -96,7 +97,7 @@ impl BiDirectionalIterator for CharStream {
     fn prev(&self) -> Result<char, CharStreamError> {
         let current = *self.index.borrow();
         if current == 1 {
-            return Err(CharStreamError::FallsOffEnd);
+            return Err(CharStreamError::FallsOff);
         }
 
         let current = *self.index.borrow() - 1;
@@ -110,7 +111,7 @@ impl BiDirectionalIterator for CharStream {
     /// Advance the CharStream by 1 returning &self
     ///
     /// # Errors
-    /// CharStreamError::FallsOffEnd if a complete call to prev would step off
+    /// CharStreamError::FallsOff if a complete call to prev would step off
     /// the end of the String
     ///
     /// CharStreamError::ValueNotFound if indexing into a *good* index is None.
@@ -123,7 +124,7 @@ impl BiDirectionalIterator for CharStream {
         self.index.replace(current);
 
         if current > self.value.len() {
-            return Err(CharStreamError::FallsOffEnd);
+            return Err(CharStreamError::FallsOff);
         }
 
         // we've already been here. early return
@@ -142,7 +143,7 @@ impl BiDirectionalIterator for CharStream {
     /// Retreat the CharStream by 1 returning &self
     ///
     /// # Errors
-    /// CharStreamError::FallsOffEnd if a complete call to prev would step off
+    /// CharStreamError::FallsOff if a complete call to prev would step off
     /// the beginning of the String
     ///
     /// CharStreamError::ValueNotFound if indexing into a *good* index is None.
@@ -153,7 +154,7 @@ impl BiDirectionalIterator for CharStream {
     fn peek_prev(&self) -> Result<&CharStream, CharStreamError> {
         let current = *self.index.borrow() - 1;
         if current == 0 {
-            return Err(CharStreamError::FallsOffEnd);
+            return Err(CharStreamError::FallsOff);
         }
         self.index.replace(current);
 
@@ -198,7 +199,7 @@ mod tests {
         let value = String::from("foobar");
         let stream = CharStream::from(value);
         stream.next(); // 'f'
-        assert_eq!(Err(CharStreamError::FallsOffEnd), stream.prev());
+        assert_eq!(Err(CharStreamError::FallsOff), stream.prev());
     }
 
     #[test]
@@ -211,7 +212,7 @@ mod tests {
         stream.next(); // 'b'
         stream.next(); // 'a'
         stream.next(); // 'r'
-        assert_eq!(Err(CharStreamError::FallsOffEnd), stream.next());
+        assert_eq!(Err(CharStreamError::FallsOff), stream.next());
     }
 
     #[test]
@@ -219,7 +220,7 @@ mod tests {
         let value = String::from("foobar");
         let stream = CharStream::from(value);
         stream.next(); // 'f'
-        assert_eq!(Err(CharStreamError::FallsOffEnd), stream.peek_prev());
+        assert_eq!(Err(CharStreamError::FallsOff), stream.peek_prev());
     }
 
     #[test]
@@ -233,7 +234,7 @@ mod tests {
         stream.peek_next(); // 'a'
         stream.peek_next(); // 'r'
         assert_eq!(
-            Err(CharStreamError::FallsOffEnd),
+            Err(CharStreamError::FallsOff),
             stream.peek_next().and_then(CharStream::value)
         );
     }
