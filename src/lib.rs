@@ -250,16 +250,16 @@ mod tests {
     fn it_can_get_back_to_where_it_started_peek() {
         let value = String::from("foobar");
         let stream = CharStream::from(value);
-        stream.next(); // 'f'
-        stream.next(); // 'o'
-        stream.next(); // 'o'
-        stream.next(); // 'b'
-        stream.next(); // 'a'
-        stream.next(); // 'r'
-        stream.prev(); // 'a'
-        stream.prev(); // 'b'
-        stream.prev(); // 'o'
-        stream.prev(); // 'o'
+        stream.peek_next(); // 'f'
+        stream.peek_next(); // 'o'
+        stream.peek_next(); // 'o'
+        stream.peek_next(); // 'b'
+        stream.peek_next(); // 'a'
+        stream.peek_next(); // 'r'
+        stream.peek_prev(); // 'a'
+        stream.peek_prev(); // 'b'
+        stream.peek_prev(); // 'o'
+        stream.peek_prev(); // 'o'
         assert_eq!(Ok('f'), stream.prev());
     }
 }
