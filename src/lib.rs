@@ -1,13 +1,9 @@
 #![warn(clippy::pedantic, clippy::nursery)]
 
-//! CharStream is a hacked bi-directional char iterator that takes ownership of a
+//! `CharStream` is a hacked bi-directional char iterator that takes ownership of a
 //! `String` and grants the client an ability to scan back and forth through a stream
-//! of characters. A CharStream is not a ring; an attempt to iterate past the front or end
-//! of the stream will fail with CharStreamError::FallsOff
-//!
-//! CharStream takes 2N in space where N is the number of characters in the
-//! original string. This is guaranteed as a Vector holding an internal cache of
-//! the String is allocated on construction. This not ideal.
+//! of characters. A `CharStream` is not a ring; an attempt to iterate past the front or end
+//! of the stream will fail with `CharStreamError::FallsOff`
 //!
 //! This structure is designed to allow the caller to hold an immutable
 //! instance to CharStream, since only the underlying implementation details of
@@ -29,21 +25,16 @@ pub enum CharStreamError {
 
 #[derive(Debug, PartialEq)]
 pub struct CharStream {
-    payload: RefCell<Vec<Option<char>>>,
-    value: String,
-    index: RefCell<usize>,
+    payload: RefCell<Vec<char>>,
+    index: RefCell<isize>,
 }
 
 impl CharStream {
     /// Constructs a new CharStream from a String.
-    ///
-    /// Allocate a vector with a len() 1 greater than the s.len(). This is so
-    /// that we can use index 0 as a sentinal value.
     pub fn from(s: String) -> Self {
         CharStream {
-            payload: RefCell::new(vec![None; s.len() + 1]),
-            value: s,
-            index: RefCell::new(0),
+            payload: RefCell::new(s.chars().collect()),
+            index: RefCell::new(-1),
         }
     }
 }
@@ -69,21 +60,12 @@ impl BiDirectionalIterator for CharStream {
         let current = *self.index.borrow() + 1;
         self.index.replace(current);
 
-        if current > self.value.len() {
+        if current >= self.payload.borrow().len() as isize {
             return Err(CharStreamError::FallsOff);
         }
 
-        // we've already been here. early return
-        if self.payload.borrow()[current].is_some() {
-            return self.payload.borrow()[current].ok_or(CharStreamError::ValueNotFound);
-        }
-
-        if let Some(c) = self.value.chars().next() {
-            self.payload.borrow_mut()[current] = Some(c);
-            self.payload.borrow()[current].ok_or(CharStreamError::ValueNotFound)
-        } else {
-            return Err(CharStreamError::FallsOff);
-        }
+        assert!(current >= 0);
+        Ok(self.payload.borrow()[current as usize])
     }
 
     /// Retreat the CharStream by 1 returning the character
@@ -96,16 +78,15 @@ impl BiDirectionalIterator for CharStream {
     /// This is a programming error.
     fn prev(&self) -> Result<char, CharStreamError> {
         let current = *self.index.borrow();
-        if current == 1 {
+        if current == 0 {
             return Err(CharStreamError::FallsOff);
         }
 
         let current = *self.index.borrow() - 1;
         self.index.replace(current);
 
-        let val = self.payload.borrow()[current];
-        assert!(current == 0 || self.payload.borrow()[current].is_some());
-        val.ok_or(CharStreamError::ValueNotFound)
+        assert!(current >= 0);
+        Ok(self.payload.borrow()[current as usize])
     }
 
     /// Advance the CharStream by 1 returning &self
@@ -123,18 +104,8 @@ impl BiDirectionalIterator for CharStream {
         let current = *self.index.borrow() + 1;
         self.index.replace(current);
 
-        if current > self.value.len() {
+        if current >= self.payload.borrow().len() as isize {
             return Err(CharStreamError::FallsOff);
-        }
-
-        // we've already been here. early return
-        if self.payload.borrow()[current].is_some() {
-            return Ok(self);
-        } else if let Some(c) = self.value.chars().next() {
-            self.payload.borrow_mut()[current] = Some(c);
-            assert!(self.payload.borrow()[current].is_some());
-        } else {
-            return Err(CharStreamError::NextFailed);
         }
 
         Ok(self)
@@ -153,12 +124,10 @@ impl BiDirectionalIterator for CharStream {
     /// fails. This error is fatal.
     fn peek_prev(&self) -> Result<&CharStream, CharStreamError> {
         let current = *self.index.borrow() - 1;
-        if current == 0 {
+        if current < 0 {
             return Err(CharStreamError::FallsOff);
         }
         self.index.replace(current);
-
-        assert!(current == 0 || self.payload.borrow()[current].is_some());
         Ok(self)
     }
 
@@ -170,7 +139,7 @@ impl BiDirectionalIterator for CharStream {
     /// fails. This error is fatal.
     fn value(&self) -> Result<char, CharStreamError> {
         let current = *self.index.borrow();
-        self.payload.borrow()[current].ok_or(CharStreamError::ValueNotFound)
+        Ok(self.payload.borrow()[current as usize])
     }
 }
 
