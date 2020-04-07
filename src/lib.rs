@@ -25,7 +25,7 @@ pub enum CharStreamError {
 
 #[derive(Debug, PartialEq)]
 pub struct CharStream {
-    payload: Vec<char>,
+    chars: Vec<char>,
     index: RefCell<isize>,
 }
 
@@ -33,7 +33,7 @@ impl CharStream {
     /// Constructs a new CharStream from a String.
     pub fn from(s: String) -> Self {
         CharStream {
-            payload: s.chars().collect(),
+            chars: s.chars().collect(),
             index: RefCell::new(-1),
         }
     }
@@ -60,12 +60,12 @@ impl BiDirectionalIterator for CharStream {
         let current = *self.index.borrow() + 1;
         self.index.replace(current);
 
-        if current >= self.payload.len() as isize {
+        if current >= self.chars.len() as isize {
             return Err(CharStreamError::FallsOff);
         }
 
         assert!(current >= 0);
-        Ok(self.payload[current as usize])
+        Ok(self.chars[current as usize])
     }
 
     /// Retreat the CharStream by 1 returning the character
@@ -86,7 +86,7 @@ impl BiDirectionalIterator for CharStream {
         self.index.replace(current);
 
         assert!(current >= 0);
-        Ok(self.payload[current as usize])
+        Ok(self.chars[current as usize])
     }
 
     /// Advance the CharStream by 1 returning &self
@@ -104,7 +104,7 @@ impl BiDirectionalIterator for CharStream {
         let current = *self.index.borrow() + 1;
         self.index.replace(current);
 
-        if current >= self.payload.len() as isize {
+        if current >= self.chars.len() as isize {
             return Err(CharStreamError::FallsOff);
         }
 
@@ -139,7 +139,7 @@ impl BiDirectionalIterator for CharStream {
     /// fails. This error is fatal.
     fn value(&self) -> Result<char, CharStreamError> {
         let current = *self.index.borrow();
-        Ok(self.payload[current as usize])
+        Ok(self.chars[current as usize])
     }
 }
 
