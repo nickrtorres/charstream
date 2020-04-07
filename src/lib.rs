@@ -17,7 +17,7 @@ pub struct CharStream {
 }
 
 impl CharStream {
-    /// Constructs a new CharStream from a String.
+    /// Constructs a new `CharStream` from a `String`.
     pub fn from(s: String) -> Self {
         CharStream {
             chars: s.chars().collect(),
