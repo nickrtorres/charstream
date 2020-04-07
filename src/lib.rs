@@ -35,7 +35,9 @@ pub trait BiDirectionalIterator {
 }
 
 impl BiDirectionalIterator for CharStream {
-    /// Advance the `CharStream` by 1 returning the character
+    /// Retreat the `CharStream` by 1 returning the `char` under the cursor or
+    /// `None` if executing `prev` entirely would step off the end of the
+    /// `String`
     fn next(&self) -> Option<char> {
         let current = *self.index.borrow() + 1;
         self.index.replace(current);
@@ -48,7 +50,9 @@ impl BiDirectionalIterator for CharStream {
         Some(self.chars[current as usize])
     }
 
-    /// Retreat the `CharStream` by 1 returning the character
+    /// Retreat the `CharStream` by 1 returning the `char` under the cursor or
+    /// `None` if executing `prev` entirely would step off the front of the
+    /// `String`
     fn prev(&self) -> Option<char> {
         let current = *self.index.borrow();
         if current == 0 {
@@ -62,7 +66,8 @@ impl BiDirectionalIterator for CharStream {
         Some(self.chars[current as usize])
     }
 
-    /// Advance the CharStream by 1 returning &self
+    /// Advance the `CharStream` by 1 returning the `&self` or `None` if executing
+    /// `peek_next` entirely would step off the end of the `String`
     fn peek_next(&self) -> Option<&CharStream> {
         let current = *self.index.borrow() + 1;
         self.index.replace(current);
@@ -74,7 +79,8 @@ impl BiDirectionalIterator for CharStream {
         Some(self)
     }
 
-    /// Retreat the CharStream by 1 returning &self
+    /// Retreat the `CharStream` by 1 returning the `&self` or `None` if executing
+    /// `peek_prev` entirely would step off the front of the `String`
     fn peek_prev(&self) -> Option<&CharStream> {
         let current = *self.index.borrow() - 1;
         if current < 0 {
